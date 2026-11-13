@@ -1,0 +1,30 @@
+name: Python security (Bandit + pip-audit)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "5 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit pip-audit
+      - name: Bandit report (medium+, informational)
+        run: bandit -r . -x ./.git,./venv,./.venv,./tests -ll --exit-zero
+      - name: Bandit gate (fail on high severity)
+        run: bandit -r . -x ./.git,./venv,./.venv,./tests -lll
+      - name: pip-audit
+        run: |
+          shopt -s nullglob
+          files=(requirements*.txt)
+          if [ ${#files[@]} -gt 0 ]; then for f in "${files[@]}"; do pip-audit -r "$f"; done; else echo "No requirements file - skipped"; fi
